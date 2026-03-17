@@ -24,7 +24,6 @@ function StarInput({ value, onChange }) {
 }
 
 function ReviewSection({ productId, productTitle }) {
-
   const { user, fetchProducts } = useStore();
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,24 +31,18 @@ function ReviewSection({ productId, productTitle }) {
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [canReview, setCanReview] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
 
-  // ✅ Load reviews from Supabase
   useEffect(() => {
     if (!productId) return;
     fetchReviews();
   }, [productId]);
 
-  const fetchReviews = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('*')
-      .eq('product_id', productId)
-      .order('created_at', { ascending: false });
-
-    if (!error) setReviews(data || []);
-    setLoading(false);
-  };
+  useEffect(() => {
+    if (!user || !productId) return;
+    checkIfCanReview();
+  }, [user, productId]);
 
   // ✅ Pre-fill name if logged in
   useEffect(() => {
@@ -67,6 +60,61 @@ function ReviewSection({ productId, productTitle }) {
     }
   }, [user]);
 
+  const fetchReviews = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('product_id', productId)
+      .order('created_at', { ascending: false });
+
+    if (!error) setReviews(data || []);
+    setLoading(false);
+  };
+
+  // ✅ Check if user can review
+  const checkIfCanReview = async () => {
+    setCanReview(false);
+    setAlreadyReviewed(false);
+
+    // Check if already reviewed
+    const { data: existingReview } = await supabase
+      .from('reviews')
+      .select('id')
+      .eq('product_id', productId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (existingReview) {
+      setAlreadyReviewed(true);
+      return;
+    }
+
+    // Get product title
+    const { data: product } = await supabase
+      .from('products')
+      .select('title')
+      .eq('id', productId)
+      .single();
+
+    if (!product) return;
+
+    // Check if user has a delivered order with this product
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('items, status')
+      .eq('user_id', user.id)
+      .eq('status', 'delivered');
+
+    if (!orders || orders.length === 0) return;
+
+    const purchased = orders.some(order =>
+      (order.items || []).some(item => item.title === product.title)
+    );
+
+    setCanReview(purchased);
+  };
+
   const avgRating = reviews.length
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : 0;
@@ -79,13 +127,10 @@ function ReviewSection({ productId, productTitle }) {
       : 0,
   }));
 
-  // ✅ Save review to Supabase
   const handleSubmit = async () => {
     if (!form.name.trim()) return setError('Please enter your name.');
     if (form.rating === 0) return setError('Please select a star rating.');
     if (!form.text.trim()) return setError('Please write a review.');
-
-    // Must be logged in
     if (!user) return setError('Please log in to submit a review.');
 
     setError('');
@@ -107,17 +152,21 @@ function ReviewSection({ productId, productTitle }) {
     } else {
       setForm({ name: '', text: '', rating: 0 });
       setSubmitted(true);
+      setAlreadyReviewed(true);
+      setCanReview(false);
       setTimeout(() => setSubmitted(false), 3000);
-      fetchReviews(); // reload reviews
-      fetchProducts(); 
+      fetchReviews();
+      fetchProducts();
     }
   };
 
-  // ✅ Delete own review
   const handleDelete = async (reviewId) => {
     if (!window.confirm('Delete your review?')) return;
     await supabase.from('reviews').delete().eq('id', reviewId);
     fetchReviews();
+    fetchProducts();
+    setAlreadyReviewed(false);
+    setCanReview(true);
   };
 
   return (
@@ -157,52 +206,62 @@ function ReviewSection({ productId, productTitle }) {
       <div className="review-form-box">
         <h3 className="review-form-title">Write a Review</h3>
 
-        {!user && (
+        {!user ? (
           <p className="review-login-notice">
             Please <a href="/login">sign in</a> to submit a review.
           </p>
+        ) : alreadyReviewed ? (
+          <p className="review-login-notice">
+            ✅ You have already reviewed this product.
+          </p>
+        ) : !canReview ? (
+          <p className="review-login-notice">
+            🛒 You can only review products you have purchased and received.
+          </p>
+        ) : (
+          <>
+            <div className="review-form-group">
+              <label>Your Name</label>
+              <input
+                type="text"
+                className="review-input"
+                placeholder="e.g. Alex M."
+                value={form.name}
+                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+
+            <div className="review-form-group">
+              <label>Your Rating</label>
+              <StarInput
+                value={form.rating}
+                onChange={val => setForm(p => ({ ...p, rating: val }))}
+              />
+            </div>
+
+            <div className="review-form-group">
+              <label>Your Review</label>
+              <textarea
+                className="review-textarea"
+                placeholder={`Share your experience with ${productTitle}...`}
+                rows={4}
+                value={form.text}
+                onChange={e => setForm(p => ({ ...p, text: e.target.value }))}
+              />
+            </div>
+
+            {error && <p className="review-error">{error}</p>}
+            {submitted && <p className="review-success">✓ Review submitted successfully!</p>}
+
+            <button
+              className="btn-primary review-submit-btn"
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? 'Submitting...' : 'Submit Review'}
+            </button>
+          </>
         )}
-
-        <div className="review-form-group">
-          <label>Your Name</label>
-          <input
-            type="text"
-            className="review-input"
-            placeholder="e.g. Alex M."
-            value={form.name}
-            onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-          />
-        </div>
-
-        <div className="review-form-group">
-          <label>Your Rating</label>
-          <StarInput
-            value={form.rating}
-            onChange={val => setForm(p => ({ ...p, rating: val }))}
-          />
-        </div>
-
-        <div className="review-form-group">
-          <label>Your Review</label>
-          <textarea
-            className="review-textarea"
-            placeholder={`Share your experience with ${productTitle}...`}
-            rows={4}
-            value={form.text}
-            onChange={e => setForm(p => ({ ...p, text: e.target.value }))}
-          />
-        </div>
-
-        {error && <p className="review-error">{error}</p>}
-        {submitted && <p className="review-success">✓ Review submitted successfully!</p>}
-
-        <button
-          className="btn-primary review-submit-btn"
-          onClick={handleSubmit}
-          disabled={submitting || !user}
-        >
-          {submitting ? 'Submitting...' : 'Submit Review'}
-        </button>
       </div>
 
       {/* Reviews list */}
@@ -227,7 +286,6 @@ function ReviewSection({ productId, productTitle }) {
                 <div className="review-card-stars">
                   <Stars rating={r.rating} />
                 </div>
-                {/* ✅ Delete button for own reviews */}
                 {user && user.id === r.user_id && (
                   <button
                     className="review-delete-btn"

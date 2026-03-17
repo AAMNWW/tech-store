@@ -87,7 +87,7 @@ function SignupPage() {
             <label>Full name</label>
             <input
               type="text"
-              placeholder="John Doe"
+              placeholder="Aamna Tariq"
               value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
             />

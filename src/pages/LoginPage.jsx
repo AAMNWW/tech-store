@@ -87,8 +87,25 @@ function LoginPage() {
             <span>Remember me for 30 days</span>
           </label>
 
-          {error && <p className="auth-error">{error}</p>}
-
+          {error && (
+  <div>
+    <p className="auth-error">{error}</p>
+    {error === 'Email not confirmed' && (
+      <button
+        className="auth-resend-btn"
+        onClick={async () => {
+          await supabase.auth.resend({
+            type: 'signup',
+            email: form.email.trim(),
+          });
+          alert('Confirmation email resent! Check your inbox.');
+        }}
+      >
+        Resend confirmation email
+      </button>
+    )}
+  </div>
+)}
           <button className="auth-submit-btn" onClick={handleSubmit} disabled={loading}>
             {loading ? <span className="auth-spinner" /> : 'Sign In'}
           </button>

@@ -4789,3 +4789,12 @@ top: 100%;
 .review-delete-btn:hover {
   color: #e74c3c;
 }
+.auth-resend-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  text-decoration: underline;
+}
