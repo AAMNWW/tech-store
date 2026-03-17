@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { supabase } from '../lib/supabase';
@@ -34,6 +35,34 @@ function CheckoutPage() {
 
   const [shippingMethod, setShippingMethod] = useState('standard');
   const [errors, setErrors] = useState({});
+  // Pre-fill shipping if logged in
+useEffect(() => {
+  if (!user) return;
+  const fetchAddress = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('shipping_address, full_name')
+      .eq('id', user.id)
+      .single();
+
+    if (data?.shipping_address) {
+      setShipping(prev => ({
+        ...prev,
+        ...data.shipping_address,
+        email: user.email || '',
+      }));
+    } else if (data?.full_name) {
+      const parts = data.full_name.split(' ');
+      setShipping(prev => ({
+        ...prev,
+        firstName: parts[0] || '',
+        lastName: parts.slice(1).join(' ') || '',
+        email: user.email || '',
+      }));
+    }
+  };
+  fetchAddress();
+}, [user]);
 
   const subtotal = cart.reduce((sum, item) => {
     return sum + parseFloat(item.price.replace('$', '')) * item.qty;
@@ -118,6 +147,25 @@ function CheckoutPage() {
     if (error) {
       console.error('Order save error:', error);
       showToast('Order placed but could not be saved. Contact support.');
+    }
+
+    // ✅ ADD THIS BELOW
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({
+          shipping_address: {
+            firstName: shipping.firstName,
+            lastName: shipping.lastName,
+            phone: shipping.phone,
+            address: shipping.address,
+            city: shipping.city,
+            state: shipping.state,
+            zip: shipping.zip,
+            country: shipping.country,
+          }
+        })
+        .eq('id', user.id);
     }
   };
 
