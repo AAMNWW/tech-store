@@ -41,8 +41,9 @@ function ProductPage() {
     </div>
   );
 
-  const images = product.images || [product.img, product.img, product.img, product.img];
-
+const images = (product.images && product.images.length > 0) 
+  ? product.images 
+  : [product.img, product.img, product.img, product.img];
   const prev = () => setActiveImg(i => (i === 0 ? images.length - 1 : i - 1));
   const next = () => setActiveImg(i => (i === images.length - 1 ? 0 : i + 1));
 

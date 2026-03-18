@@ -123,7 +123,7 @@ function AdminPage() {
       price: productForm.price.trim(),
       original_price: productForm.original_price.trim() || null,
       category: productForm.category,
-      img: productForm.img.trim() || (cleanedImages[0] || ''),
+      img: cleanedImages[0] || productForm.img.trim() || '',
       images: cleanedImages.length > 0 ? cleanedImages : null,
       description: productForm.description.trim(),
       sale: productForm.sale,
@@ -220,6 +220,7 @@ function AdminPage() {
     shipped: '#8b5cf6', delivered: '#27ae60', cancelled: '#e74c3c',
   };
 
+  // ── IMAGE FIELD component ──
   // ── IMAGE FIELD component ──
   const ImageField = ({ label, value, onChange, onUpload, uploading }) => (
     <div className="admin-image-field">

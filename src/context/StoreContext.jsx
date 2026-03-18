@@ -136,12 +136,13 @@ export function StoreProvider({ children }) {
     if (error) {
       console.error('Error fetching products:', error);
     } else {
-      const normalized = data.map(p => ({
-        ...p,
-        originalPrice: p.original_price,
-        colors: typeof p.colors === 'string' ? JSON.parse(p.colors) : p.colors,
-        reviews: typeof p.reviews === 'string' ? JSON.parse(p.reviews) : (p.reviews || []),
-      }));
+     const normalized = data.map(p => ({
+  ...p,
+  originalPrice: p.original_price,
+  img: p.img || (Array.isArray(p.images) ? p.images[0] : ''),  // ✅ fallback
+  colors: typeof p.colors === 'string' ? JSON.parse(p.colors) : p.colors,
+  reviews: typeof p.reviews === 'string' ? JSON.parse(p.reviews) : (p.reviews || []),
+}));
       setProducts(normalized);
     }
     setProductsLoading(false);
