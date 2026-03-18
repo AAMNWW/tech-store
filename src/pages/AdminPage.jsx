@@ -82,7 +82,7 @@ function AdminPage() {
     if (!file) return;
     setUploadingIdx(index);
     const ext = file.name.split('.').pop();
-    const fileName = `product-${Date.now()}-${index}.${ext}`;
+    const fileName = `product-${Date.now()}-${Math.random().toString(36).slice(2)}-${index}.${ext}`;
     const { data, error } = await supabase.storage
       .from('product-images')
       .upload(fileName, file, { upsert: true });
